@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML PowerPoint with Folder Structure</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
+        }
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transition: transform 0.5s ease;
+        }
+        .slide img, .slide video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            cursor: pointer;
+        }
+        #folder-list {
+            padding: 20px;
+            display: none;
+        }
+        #folder-list ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        #folder-list li {
+            margin: 10px 0;
+        }
+        #folder-list a {
+            text-decoration: none;
+            font-size: 18px;
+            color: #007bff;
+            cursor: pointer;
+        }
+        #folder-list a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div id="folder-list">
+        <h2>Pilih Folder:</h2>
+        <ul id="folderList"></ul>
+    </div>
+
+    <div id="slides-container"></div> <!-- Kontainer untuk slide dinamis -->
+
+    <script>
+        let currentSlide = 0;
+        let folderData = {}; // Menyimpan data folder dari JSON
+        let mediaData = []; // Menyimpan data media dari folder
+        const slidesContainer = document.getElementById('slides-container');
+        const validExtensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp']; // Ekstensi gambar yang valid
+        const videoExtensions = ['mp4', 'mkv']; // Ekstensi video yang valid
+
+        // Fungsi untuk mendapatkan folder dari hash
+        function getFolderFromHash() {
+            const hash = window.location.hash.substring(1); // Menghilangkan tanda #
+            return hash ? hash : 'main'; // Default ke 'main' jika tidak ada hash
+        }
+
+        // Fungsi untuk memuat data dari file JSON utama
+        async function loadFolderData() {
+            try {
+                const response = await fetch('data.json'); // Mengambil data folder dari file JSON utama
+                folderData = await response.json();
+                updateContent(); // Update konten setelah data dimuat
+            } catch (error) {
+                console.error("Gagal memuat data.json", error);
+            }
+        }
+
+        // Fungsi untuk memuat data media dari folder tertentu
+        async function loadMediaData(folder) {
+            try {
+                const response = await fetch(`${folder}/data.json`); // Mengambil data media dari folder
+                const data = await response.json();
+                mediaData = data.Media;
+                updateSlides(); // Update slide setelah data media dimuat
+            } catch (error) {
+                console.error(`Gagal memuat ${folder}/data.json`, error);
+            }
+        }
+
+        // Fungsi untuk memperbarui konten berdasarkan hash
+        function updateContent() {
+            const folder = getFolderFromHash();
+
+            if (folder === 'main') {
+                showFolderList();
+            } else {
+                loadMediaData(folder);
+            }
+        }
+
+        // Fungsi untuk memperbarui slide berdasarkan media
+        function updateSlides() {
+            slidesContainer.innerHTML = ''; // Hapus slide sebelumnya
+
+            mediaData.forEach((mediaFile, index) => {
+                const extension = mediaFile.split('.').pop().toLowerCase();
+                const slide = document.createElement('div');
+                slide.classList.add('slide');
+                slide.id = `slide${index + 1}`; // Buat ID dinamis
+
+                if (validExtensions.includes(extension)) {
+                    const img = document.createElement('img');
+                    img.src = `${getFolderFromHash()}/${mediaFile}`;
+                    img.alt = `Slide ${index + 1}`;
+                    slide.appendChild(img);
+                } else if (videoExtensions.includes(extension)) {
+                    const video = document.createElement('video');
+                    video.src = `${getFolderFromHash()}/${mediaFile}`;
+                    video.controls = true;
+                    video.style.cursor = 'pointer';
+                    video.addEventListener('click', () => {
+                        if (video.paused) {
+                            video.play();
+                        } else {
+                            video.pause();
+                        }
+                    });
+                    slide.appendChild(video);
+                }
+
+                slidesContainer.appendChild(slide);
+            });
+
+            showSlide(currentSlide); // Tampilkan slide pertama
+            document.getElementById('folder-list').style.display = 'none'; // Sembunyikan daftar folder
+            document.querySelectorAll('.slide').forEach(slide => slide.style.display = 'flex'); // Tampilkan slide
+        }
+
+        // Fungsi untuk menampilkan daftar folder
+        function showFolderList() {
+            const folderList = document.getElementById('folderList');
+            folderList.innerHTML = ''; // Kosongkan daftar sebelum diisi ulang
+
+            for (let folder in folderData) {
+                const listItem = document.createElement('li');
+                const link = document.createElement('a');
+                link.href = `#${folderData[folder]}`;
+                link.textContent = `Folder ${folder}`;
+                listItem.appendChild(link);
+                folderList.appendChild(listItem);
+            }
+
+            document.getElementById('folder-list').style.display = 'block'; // Tampilkan daftar folder
+            slidesContainer.innerHTML = ''; // Kosongkan kontainer slide
+        }
+
+        // Fungsi untuk menampilkan slide
+        function showSlide(index) {
+            const slides = document.querySelectorAll('.slide');
+            slides.forEach((slide, i) => {
+                slide.style.transform = `translateX(${(i - index) * 100}vw)`;
+            });
+        }
+
+        // Fungsi untuk berpindah slide
+        function moveSlide(direction) {
+            const slides = document.querySelectorAll('.slide');
+            currentSlide = Math.min(Math.max(currentSlide + direction, 0), slides.length - 1);
+            showSlide(currentSlide);
+        }
+
+        // Fungsi untuk menangani klik di kiri atau kanan gambar/video
+        let clickTimeout = null;
+
+        function handleClick(event) {
+            const clickPosition = event.clientX;
+            const screenWidth = window.innerWidth;
+
+            if (clickTimeout) {
+                clearTimeout(clickTimeout);
+                clickTimeout = null;
+                const clickTime = new Date().getTime();
+                if (clickTime - lastClickTime < 300) {
+                    if (clickPosition < screenWidth / 2) {
+                        moveSlide(-1); // Klik dua kali di sebelah kiri layar
+                    } else {
+                        moveSlide(1); // Klik dua kali di sebelah kanan layar
+                    }
+                }
+            } else {
+                clickTimeout = setTimeout(() => {
+                    clickTimeout = null;
+                }, 300);
+                lastClickTime = new Date().getTime();
+            }
+
+            // Menangani interaksi klik tunggal pada video
+            const target = event.target;
+            if (target.tagName === 'VIDEO') {
+                if (target.paused) {
+                    target.play();
+                } else {
+                    target.pause();
+                }
+            }
+        }
+
+        slidesContainer.addEventListener('click', handleClick);
+
+        // Event listener untuk hash change
+        window.addEventListener('hashchange', function() {
+            location.reload(); // Refresh halaman saat hash berubah
+        });
+
+        // Memuat data dari JSON saat halaman pertama kali dimuat
+        loadFolderData();
+    </script>
+</body>
+  </html>
+      
