@@ -22,7 +22,10 @@
             position: absolute;
             top: 0;
             left: 0;
-            transition: transform 0.5s ease;
+            visibility: hidden; /* Awalnya disembunyikan */
+        }
+        .active {
+            visibility: visible; /* Tampilkan hanya slide aktif */
         }
         .slide img, .slide video {
             max-width: 100%;
@@ -167,9 +170,8 @@
         // Fungsi untuk menampilkan slide
         function showSlide(index) {
             const slides = document.querySelectorAll('.slide');
-            slides.forEach((slide, i) => {
-                slide.style.transform = `translateX(${(i - index) * 100}vw)`;
-            });
+            slides.forEach(slide => slide.classList.remove('active')); // Sembunyikan semua slide
+            slides[index].classList.add('active'); // Tampilkan slide saat ini
         }
 
         // Fungsi untuk berpindah slide
@@ -180,38 +182,14 @@
         }
 
         // Fungsi untuk menangani klik di kiri atau kanan gambar/video
-        let clickTimeout = null;
-
         function handleClick(event) {
             const clickPosition = event.clientX;
             const screenWidth = window.innerWidth;
 
-            if (clickTimeout) {
-                clearTimeout(clickTimeout);
-                clickTimeout = null;
-                const clickTime = new Date().getTime();
-                if (clickTime - lastClickTime < 300) {
-                    if (clickPosition < screenWidth / 2) {
-                        moveSlide(-1); // Klik dua kali di sebelah kiri layar
-                    } else {
-                        moveSlide(1); // Klik dua kali di sebelah kanan layar
-                    }
-                }
+            if (clickPosition < screenWidth / 2) {
+                moveSlide(-1); // Klik di sebelah kiri, pindah ke slide sebelumnya
             } else {
-                clickTimeout = setTimeout(() => {
-                    clickTimeout = null;
-                }, 300);
-                lastClickTime = new Date().getTime();
-            }
-
-            // Menangani interaksi klik tunggal pada video
-            const target = event.target;
-            if (target.tagName === 'VIDEO') {
-                if (target.paused) {
-                    target.play();
-                } else {
-                    target.pause();
-                }
+                moveSlide(1); // Klik di sebelah kanan, pindah ke slide berikutnya
             }
         }
 
@@ -226,5 +204,4 @@
         loadFolderData();
     </script>
 </body>
-  </html>
-      
+</html>
