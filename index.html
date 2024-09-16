@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTML PowerPoint with Folder Structure</title>
+    <title>HTML PowerPoint with Custom Video Player</title>
     <style>
         body {
             margin: 0;
@@ -32,6 +32,19 @@
             max-height: 100%;
             object-fit: contain;
             cursor: pointer;
+        }
+        .video-container {
+            position: relative;
+        }
+        .video-container .play-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: white;
+            cursor: pointer;
+            z-index: 10;
         }
         #folder-list {
             padding: 20px;
@@ -127,18 +140,33 @@
                     img.alt = `Slide ${index + 1}`;
                     slide.appendChild(img);
                 } else if (videoExtensions.includes(extension)) {
+                    const videoContainer = document.createElement('div');
+                    videoContainer.classList.add('video-container');
                     const video = document.createElement('video');
                     video.src = `${getFolderFromHash()}/${mediaFile}`;
-                    video.controls = true;
-                    video.style.cursor = 'pointer';
-                    video.addEventListener('click', () => {
+                    video.controls = false; // Nonaktifkan kontrol default
+                    videoContainer.appendChild(video);
+                    const playButton = document.createElement('div');
+                    playButton.classList.add('play-button');
+                    playButton.textContent = '▶'; // Simbol play
+                    videoContainer.appendChild(playButton);
+                    slide.appendChild(videoContainer);
+
+                    // Fungsi untuk play video saat slide ditampilkan
+                    slide.addEventListener('mouseenter', () => {
+                        video.play();
+                    });
+
+                    // Fungsi untuk menghentikan video dan berpindah slide
+                    playButton.addEventListener('click', () => {
                         if (video.paused) {
                             video.play();
+                            playButton.textContent = '⏸'; // Simbol pause
                         } else {
                             video.pause();
+                            playButton.textContent = '▶'; // Simbol play
                         }
                     });
-                    slide.appendChild(video);
                 }
 
                 slidesContainer.appendChild(slide);
@@ -182,14 +210,40 @@
         }
 
         // Fungsi untuk menangani klik di kiri atau kanan gambar/video
+        let clickTimeout = null;
+        let lastClickTime = 0;
+
         function handleClick(event) {
             const clickPosition = event.clientX;
             const screenWidth = window.innerWidth;
+            const clickTime = new Date().getTime();
 
-            if (clickPosition < screenWidth / 2) {
-                moveSlide(-1); // Klik di sebelah kiri, pindah ke slide sebelumnya
+            if (clickTimeout) {
+                clearTimeout(clickTimeout);
+                clickTimeout = null;
+
+                if (clickTime - lastClickTime < 300) {
+                    if (clickPosition < screenWidth / 2) {
+                        moveSlide(-1); // Klik dua kali di sebelah kiri layar
+                    } else {
+                        moveSlide(1); // Klik dua kali di sebelah kanan layar
+                    }
+                }
             } else {
-                moveSlide(1); // Klik di sebelah kanan, pindah ke slide berikutnya
+                clickTimeout = setTimeout(() => {
+                    clickTimeout = null;
+                }, 300);
+                lastClickTime = clickTime;
+            }
+
+            // Menangani interaksi klik tunggal pada video
+            const target = event.target;
+            if (target.tagName === 'VIDEO') {
+                if (target.paused) {
+                    target.play();
+                } else {
+                    target.pause();
+                }
             }
         }
 
